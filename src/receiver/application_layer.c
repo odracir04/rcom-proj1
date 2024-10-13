@@ -1,7 +1,7 @@
 // Application layer protocol implementation
 
-#include "../include/application_layer.h"
-#include "../include/link_layer.h"
+#include "../../include/application_layer.h"
+#include "../../include/link_layer.h"
 #include <string.h>
 
 void applicationLayer(const char *serialPort, const char *role, int baudRate,

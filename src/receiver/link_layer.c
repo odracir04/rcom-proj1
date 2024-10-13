@@ -3,15 +3,13 @@
 #include <signal.h>
 #include <stdio.h>
 #include <fcntl.h>
-#include <stdio.h>
 #include <sys/types.h>
 #include <sys/stat.h>
-#include <signal.h>
 #include <termios.h>
 #include <unistd.h>
 
-#include "../include/link_layer.h"
-#include "../include/serial_port.h"
+#include "../../include/link_layer.h"
+#include "../../include/serial_port.h"
 
 // MISC
 #define _POSIX_SOURCE 1 // POSIX compliant source
@@ -44,27 +42,13 @@ int llopen(LinkLayer connectionParameters)
     // Set alarm function handler
     (void)signal(SIGALRM, alarmHandler);
 
-    // Create string to send
+    // Create string to receive
     unsigned char buf[BUF_SIZE] = {0};
 
-    buf[0] = FLAG;
-    buf[1] = ADDRESS;
-    buf[2] = CONTROL_SET;
-    buf[3] = BCC1;
-    buf[4] = FLAG;
-
     UAState state = START; 
-    while (state != STOP && alarmCount < connectionParameters.nRetransmissions)
+    while (state != STOP)
     {
     
-    if (!alarmEnabled) {
-        int bytes = writeBytes(buf, BUF_SIZE);
-        printf("%d bytes written\n", bytes);
-        alarm(connectionParameters.timeout);
-        alarmEnabled = TRUE;
-        sleep(1);
-    }    
-
     int bytes = readByte(buf);
     
     if (bytes > 0) {
@@ -86,7 +70,7 @@ int llopen(LinkLayer connectionParameters)
                 if (buf[0] == FLAG) {
                     state = FLAG; 
                 } else {
-                    state = buf[0] == CONTROL_UA ? C_RCV : START;
+                    state = buf[0] == CONTROL_SET ? C_RCV : START;
                 }
                 break;
             case C_RCV:
@@ -94,7 +78,7 @@ int llopen(LinkLayer connectionParameters)
                 if (buf[0] == FLAG) {
                     state = FLAG; 
                 } else {
-                    state = buf[0] == (ADDRESS ^ CONTROL_UA) ? BCC_OK : START;
+                    state = buf[0] == (ADDRESS ^ CONTROL_SET) ? BCC_OK : START;
                 }
                 break;
             case BCC_OK:
@@ -111,6 +95,16 @@ int llopen(LinkLayer connectionParameters)
             }        
         }
     }
+
+    buf[0] = FLAG;
+    buf[1] = ADDRESS;
+    buf[2] = CONTROL_UA;
+    buf[3] = ADDRESS ^ CONTROL_UA;
+    buf[4] = FLAG;
+
+    int bytes = writeBytes(buf, BUF_SIZE);
+    printf("%d bytes written\n", bytes);
+    sleep(1);
 
     return 1;
 }

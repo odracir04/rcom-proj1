@@ -16,5 +16,7 @@ void applicationLayer(const char *serialPort, const char *role, int baudRate,
 
     llopen(connectionParameters);
 
+    unsigned char buf[12] = {1,2,0x7E,4,5,6,7,8,9,10,11,12};
+    llwrite(buf, 12);
     llclose(0);
 }

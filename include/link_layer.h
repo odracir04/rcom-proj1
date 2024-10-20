@@ -36,13 +36,24 @@ typedef struct
 // MISC
 #define FALSE 0
 #define TRUE 1
-#define BUF_SIZE 256
 
+// Control frame size
+#define CTRL_FRAME_SIZE 0x05
+
+// Frame control fields
 #define FLAG 0x7E
-#define ADDRESS 0x03
+#define ADDRESS_TX 0x03
+#define ADDRESS_RX 0x01
 #define CONTROL_SET 0x03
 #define CONTROL_UA 0x07
-#define BCC1 0
+#define CTRL_I0 0x00
+#define CTRL_I1 0x80
+#define ESCAPE 0x7D
+#define RR0 0xAA
+#define RR1 0xAB
+#define REJ0 0x54
+#define REJ1 0x55
+#define DISC 0X0B
 
 // Open a connection using the "port" parameters defined in struct linkLayer.
 // Return "1" on success or "-1" on error.

@@ -1,4 +1,4 @@
-// Link layer protocol implementation
+ // Link layer protocol implementation
 
 #include <signal.h>
 #include <stdio.h>
@@ -293,6 +293,8 @@ int llread(unsigned char *packet)
     unsigned char rr[2];     
     UAState state = START;
     int packet_position = 0;
+    unsigned char is7d = FALSE;
+    unsigned char bbc2 = 0;
         
     while (state != STOP) {
         int bytes = readByte(rr);
@@ -312,7 +314,7 @@ int llread(unsigned char *packet)
                 case FLAG_RCV:
                     printf("FLAG_RCV State\n");
                     if (rr[0] == FLAG) {
-                        state = FLAG; 
+                        state = FLAG_RCV; 
                     } else {
                         state = rr[0] == ADDRESS_TX ? A_RCV : START;
                     }
@@ -320,7 +322,7 @@ int llread(unsigned char *packet)
                 case A_RCV:
                     printf("A_RCV State\n");
                     if (rr[0] == FLAG) {
-                        state = FLAG; 
+                        state = FLAG_RCV; 
                     } else {
                         if (current_frame == 0 && rr[0] == CTRL_I0) {
                             state = C_RCV;
@@ -335,21 +337,59 @@ int llread(unsigned char *packet)
                     break;
                 case C_RCV:
                     printf("C_RCV State\n");
-                    if (rr[0] == FLAG) {
-                        state = FLAG; 
-                    } else if (rr[0] == (ADDRESS_TX ^ CTRL_I0)) {
+                    if (rr[0] == FLAG) {packet[packet_position]
+                        state = FLAG_RCV; 
+                    } else if ((rr[0] == (ADDRESS_TX ^ CTRL_I0) && current_frame == 1) || (rr[0] == (ADDRESS_TX ^ CTRL_I1) && current_frame == 0)) {
                         state = BCC_OK;
                     }
                     break;
                 case BCC_OK:
                     printf("BCC_OK State: DATA FRAME\n");
-                    if (rr[0] == FLAG) {
-                        state = STOP;
+                    if (rr[0] == bbc2 && !is7d) {
+                        printf("e\n");
+                        state = BCC2_OK;
                     } else {
+                        if (rr[0] == 0x7d) {
+                            printf("d\n");
+                            is7d = TRUE;
+                            continue;
+                        } else if (is7d) {
+                            if (rr[0] == 0x5e) {
+                                printf("a\n");
+                                packet[packet_position] = 0x7e;
+                                bbc2 ^= 0x7e;
+                                packet_position++;
+                            } else if (rr[0] == 0x5d) {
+                                printf("b\n");
+                                packet[packet_position] = 0x7d;
+                                bbc2 ^= 0x7d;
+                                packet_position++;
+                            } else return -1;
+                            printf("c\n");
+                            is7d = FALSE;
+                            continue;
+                        }
+                        printf("f\n");
                         packet[packet_position] = rr[0];
+                        bbc2 ^= rr[0];
                         packet_position++;
                     }
                     break;
+                case BCC2_OK:
+                    printf("BCC2_OK State\n");
+                    if (rr[0] == FLAG) {
+                        state = STOP;
+                    } else {
+                        state = BCC_OK;
+                        if (rr[0] == 0x7d) {
+                            is7d = TRUE;
+                            continue;
+                        } else {
+                            packet[packet_position] = rr[0];
+                            bbc2 ^= rr[0];
+                            packet_position++;
+                        }
+                    }
                 case STOP:
                     break;
                 }        

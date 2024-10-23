@@ -337,7 +337,7 @@ int llread(unsigned char *packet)
                     break;
                 case C_RCV:
                     printf("C_RCV State\n");
-                    if (rr[0] == FLAG) {packet[packet_position]
+                    if (rr[0] == FLAG) {
                         state = FLAG_RCV; 
                     } else if ((rr[0] == (ADDRESS_TX ^ CTRL_I0) && current_frame == 1) || (rr[0] == (ADDRESS_TX ^ CTRL_I1) && current_frame == 0)) {
                         state = BCC_OK;

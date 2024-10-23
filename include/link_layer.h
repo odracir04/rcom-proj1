@@ -17,6 +17,7 @@ typedef enum
     A_RCV, 
     C_RCV, 
     BCC_OK, 
+    BCC2_OK,
     STOP
 } UAState;
 

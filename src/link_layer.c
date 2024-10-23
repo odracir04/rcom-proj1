@@ -15,8 +15,9 @@
 // MISC
 #define _POSIX_SOURCE 1 // POSIX compliant source
 
-int alarmEnabled = FALSE;
-int alarmCount = 0;
+extern int alarmEnabled;
+extern int alarmCount;
+
 int current_frame = 0;
 LinkLayer connection;
 
@@ -72,21 +73,21 @@ int llopen(LinkLayer connectionParameters)
                         break;
                     case FLAG_RCV:
                         if (set_frame[0] == FLAG) {
-                            state = FLAG; 
+                            state = FLAG_RCV; 
                         } else {
                             state = set_frame[0] == ADDRESS_TX ? A_RCV : START;
                         }
                         break;
                     case A_RCV:
                         if (set_frame[0] == FLAG) {
-                            state = FLAG; 
+                            state = FLAG_RCV; 
                         } else {
                             state = set_frame[0] == CONTROL_UA ? C_RCV : START;
                         }
                         break;
                     case C_RCV:
                         if (set_frame[0] == FLAG) {
-                            state = FLAG; 
+                            state = FLAG_RCV; 
                         } else {
                             state = set_frame[0] == (ADDRESS_TX ^ CONTROL_UA) ? BCC_OK : START;
                         }
@@ -217,8 +218,10 @@ int llwrite(const unsigned char *buf, int bufSize)
     while (state != STOP && alarmCount < 3) { // 3 is HARD-CODED 
         
         if (!alarmEnabled) {
-            int nbytes = writeBytes(frame, current_position + 2);   
-            printf("I-FRAME: wrote %d bytes\n", nbytes);
+            int nbytes = writeBytes(frame, current_position + 2);
+            for (int i = 0; i < nbytes; i++) {
+                printf(":%x", frame[i]);
+            }   
             alarm(5); // This is HARD-CODED!
             alarmEnabled = TRUE;
             sleep(1);

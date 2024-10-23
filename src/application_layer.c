@@ -5,6 +5,27 @@
 #include <stdio.h>
 #include <string.h>
 
+void sendControlPacket(unsigned char control_number, char* filename) {
+    
+    //build control packet
+    char packet[1+2+128+2+2];
+
+    packet[0] = control_number;
+    packet[1] = FILE_SIZE;
+    packet[2] = 2; // file size octets
+
+    unsigned int file_size = getFileSize();
+    packet[3] = file_size / 256;
+    packet[4] = file_size % 256;
+
+    packet[5] = FILE_NAME;
+    packet[6] = strlen(filename);
+    strcpy(&packet[7], filename);
+
+        
+}
+
+
 void applicationLayer(const char *serialPort, const char *role, int baudRate,
                       int nTries, int timeout, const char *filename)
 {
@@ -22,10 +43,14 @@ void applicationLayer(const char *serialPort, const char *role, int baudRate,
 
     llopen(connectionParameters);
 
+    unsigned char sequence_number = 0;
+
     switch (connectionParameters.role) {
         case LlTx:
-            unsigned char buf[12] = {1,2,0x7E,4,5,6,7,8,9,10,11,12};
+            // sendStartPacket()
             llwrite(buf, 12);
+            // sendEndPacket()
+
             break;
         case LlRx:
             unsigned char packet[20] = {0};

@@ -3,6 +3,9 @@
 
 #ifndef _APPLICATION_LAYER_H_
 #define _APPLICATION_LAYER_H_
+ 
+#define FILE_SIZE 0x00
+#define FILE_NAME 0x01
 
 // Application layer main function.
 // Arguments:

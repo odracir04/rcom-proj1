@@ -10,6 +10,7 @@
 
 #include "../include/link_layer.h"
 #include "../include/serial_port.h"
+#include "../include/alarm.h"
 
 // MISC
 #define _POSIX_SOURCE 1 // POSIX compliant source
@@ -18,16 +19,6 @@ int alarmEnabled = FALSE;
 int alarmCount = 0;
 int current_frame = 0;
 LinkLayer connection;
-
-
-// Alarm function handler
-void alarmHandler(int signal)
-{
-    alarmEnabled = FALSE;
-    alarmCount++;
-
-    printf("Alarm #%d\n", alarmCount);
-}
 
 ////////////////////////////////////////////////
 // LLOPEN

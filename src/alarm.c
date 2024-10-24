@@ -9,5 +9,5 @@ void alarmHandler(int signal)
     alarmEnabled = FALSE;
     alarmCount++;
 
-    printf("Alarm #%d\n", alarmCount);
+    printf("\nAlarm #%d\n", alarmCount);
 }

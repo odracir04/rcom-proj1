@@ -327,12 +327,10 @@ int llread(unsigned char *packet)
                     } else {
                         if (current_frame == 0 && rr[0] == CTRL_I0) {
                             state = C_RCV;
-                            current_frame = 1;
                         } else if (current_frame == 1 && rr[0] == CTRL_I1) {
                             state = C_RCV;
-                            current_frame = 0;
                         } else if (rr[0] == DISC) {
-                            state = STOP;
+                            return 0; // THIS CAUSES A STACK SMASH
                         }
                     }
                     break;
@@ -340,7 +338,7 @@ int llread(unsigned char *packet)
                     printf("C_RCV State\n");
                     if (rr[0] == FLAG) {
                         state = FLAG_RCV; 
-                    } else if ((rr[0] == (ADDRESS_TX ^ CTRL_I0) && current_frame == 1) || (rr[0] == (ADDRESS_TX ^ CTRL_I1) && current_frame == 0)) {
+                    } else if ((rr[0] == (ADDRESS_TX ^ CTRL_I0) && current_frame == 0) || (rr[0] == (ADDRESS_TX ^ CTRL_I1) && current_frame == 1)) {
                         state = BCC_OK;
                     }
                     break;
@@ -414,14 +412,20 @@ int llread(unsigned char *packet)
     unsigned char buf[5];
     buf[0] = FLAG;
     buf[1] = ADDRESS_TX;
-    buf[2] = current_frame == 0 ? RR0 : RR1;
+    if (current_frame == 0) {
+        buf[2] = RR1;
+        current_frame = 1;
+    } else {
+        buf[2] = RR0;
+        current_frame = 0;
+    }
     buf[3] = ADDRESS_TX ^ buf[2];
     buf[4] = FLAG;
 
     int bytes = writeBytes(buf, 5);
     printf("RR: %d bytes written\n", bytes);
     sleep(1);
-    return 0;
+    return packet_position;
 }
 
 ////////////////////////////////////////////////

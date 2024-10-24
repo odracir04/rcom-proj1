@@ -94,12 +94,16 @@ void applicationLayer(const char *serialPort, const char *role, int baudRate,
             llread(packet);
 
             out = fopen("penguin-received.gif", "w");
-            for (int i = 4; i < 1000; i++) {
+            int bytes;
+            while ((bytes = llread(packet)) > 0) {
+                for (int i = 0; i < 1000; i++) {
                 fwrite(&packet[i], 1, sizeof(packet[i]), out);
                 printf("byte: %02X\n", packet[i]);
+            }
             }
             break;
     }
     fclose(out);
+    printf("\nmade it");
     llclose(0);
 }

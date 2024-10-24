@@ -52,7 +52,7 @@ void sendDataPackets(char* filename) {
         buffer[2] = nbytes / 256;
         buffer[3] = nbytes % 256;
 
-        int llbytes = llwrite(buffer, nbytes);
+        int llbytes = llwrite(buffer, nbytes + 4);
         printf("\nDATA: Wrote %d bytes\n", llbytes);
     }
 }
@@ -82,11 +82,11 @@ void applicationLayer(const char *serialPort, const char *role, int baudRate,
             // sendControlPacket(3, filename);
             break;
         case LlRx:
-            unsigned char packet[20] = {0};
-            packet[19] = '\0';
+            unsigned char packet[1000] = {0};
+            packet[999] = '\0';
             llread(packet);
 
-            for (int i = 0; i < 20; i++) {
+            for (int i = 0; i < 1000; i++) {
                 printf("byte: %02X\n", packet[i]);
             }
             break;

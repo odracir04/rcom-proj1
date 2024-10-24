@@ -81,7 +81,7 @@ void applicationLayer(const char *serialPort, const char *role, int baudRate,
     connectionParameters.timeout = timeout;
 
     llopen(connectionParameters);
-
+    FILE *out;
     switch (connectionParameters.role) {
         case LlTx:
             // sendControlPacket(1, filename);
@@ -93,11 +93,13 @@ void applicationLayer(const char *serialPort, const char *role, int baudRate,
             packet[999] = '\0';
             llread(packet);
 
-            for (int i = 0; i < 1000; i++) {
+            out = fopen("penguin-received.gif", "w");
+            for (int i = 4; i < 1000; i++) {
+                fwrite(&packet[i], 1, sizeof(packet[i]), out);
                 printf("byte: %02X\n", packet[i]);
             }
             break;
     }
-
+    fclose(out);
     llclose(0);
 }

@@ -91,13 +91,15 @@ void applicationLayer(const char *serialPort, const char *role, int baudRate,
         case LlRx:
             unsigned char packet[1000] = {0};
             packet[999] = '\0';
-            llread(packet);
-
-            for (int i = 0; i < 1000; i++) {
+            int bytes;
+            while ((bytes = llread(packet)) > 0) {
+                for (int i = 0; i < 1000; i++) {
                 printf("byte: %02X\n", packet[i]);
+            }
             }
             break;
     }
 
+    printf("\nmade it");
     llclose(0);
 }

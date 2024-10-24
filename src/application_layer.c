@@ -16,7 +16,7 @@ void sendControlPacket(unsigned char control_number, char* filename) {
     // build control packet
     unsigned int filename_size = strlen(filename);
     unsigned int packet_size = 3 + filename_size + 4;
-    char packet[1+2+filename_size+2+2];
+    char packet[packet_size];
 
     packet[0] = control_number;
     packet[1] = FILE_SIZE;
@@ -89,11 +89,11 @@ void applicationLayer(const char *serialPort, const char *role, int baudRate,
             // sendControlPacket(3, filename);
             break;
         case LlRx:
-            unsigned char packet[20] = {0};
-            packet[19] = '\0';
+            unsigned char packet[1000] = {0};
+            packet[999] = '\0';
             llread(packet);
 
-            for (int i = 0; i < 20; i++) {
+            for (int i = 0; i < 1000; i++) {
                 printf("byte: %02X\n", packet[i]);
             }
             break;

@@ -295,6 +295,7 @@ int llread(unsigned char *packet)
     int packet_position = 0;
     unsigned char is7d = FALSE;
     unsigned char bbc2 = 0;
+    unsigned char keep = 0;
         
     while (state != STOP) {
         int bytes = readByte(rr);
@@ -346,32 +347,31 @@ int llread(unsigned char *packet)
                 case BCC_OK:
                     printf("BCC_OK State: DATA FRAME\n");
                     if (rr[0] == bbc2 && !is7d) {
-                        printf("e\n");
+                        printf("BCC2 = %x\n", bbc2);
+                        keep = rr[0];
                         state = BCC2_OK;
                     } else {
                         if (rr[0] == 0x7d) {
-                            printf("d\n");
                             is7d = TRUE;
                             continue;
                         } else if (is7d) {
                             if (rr[0] == 0x5e) {
-                                printf("a\n");
                                 packet[packet_position] = 0x7e;
                                 bbc2 ^= 0x7e;
+                                printf("BCC2 = %x\n", bbc2);
                                 packet_position++;
                             } else if (rr[0] == 0x5d) {
-                                printf("b\n");
                                 packet[packet_position] = 0x7d;
                                 bbc2 ^= 0x7d;
+                                printf("BCC2 = %x\n", bbc2);
                                 packet_position++;
                             } else return -1;
-                            printf("c\n");
                             is7d = FALSE;
                             continue;
                         }
-                        printf("f\n");
                         packet[packet_position] = rr[0];
                         bbc2 ^= rr[0];
+                        printf("BCC2 = %x\n", bbc2);
                         packet_position++;
                     }
                     break;
@@ -381,13 +381,28 @@ int llread(unsigned char *packet)
                         state = STOP;
                     } else {
                         state = BCC_OK;
-                        if (rr[0] == 0x7d) {
-                            is7d = TRUE;
-                            continue;
+                        if (keep == 0x7d) {
+                            if (rr[0] == 0x5e) {
+                                packet[packet_position] = 0x7e;
+                                bbc2 ^= 0x7e;
+                                printf("BCC2 = %x\n", bbc2);
+                                packet_position++;
+                            } else if (rr[0] == 0x5d) {
+                                packet[packet_position] = 0x7d;
+                                bbc2 ^= 0x7d;
+                                printf("BCC2 = %x\n", bbc2);
+                                packet_position++;
+                            } else return -1;
                         } else {
-                            packet[packet_position] = rr[0];
-                            bbc2 ^= rr[0];
-                            packet_position++;
+                            bbc2 ^= keep;
+                            if (rr[0] == 0x7d) {
+                                is7d = TRUE;
+                                continue;
+                            } else {
+                                packet[packet_position] = rr[0];
+                                bbc2 ^= rr[0];
+                                packet_position++;
+                            }
                         }
                     }
                 case STOP:

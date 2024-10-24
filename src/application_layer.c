@@ -13,7 +13,7 @@ unsigned int getFileSize(char* filename) {
 }
 
 void sendControlPacket(unsigned char control_number, char* filename) {
-    //build control packet
+    // build control packet
     unsigned int filename_size = strlen(filename);
     unsigned int packet_size = 3 + filename_size + 4;
     char packet[1+2+filename_size+2+2];
@@ -52,8 +52,15 @@ void sendDataPackets(char* filename) {
         buffer[2] = nbytes / 256;
         buffer[3] = nbytes % 256;
 
-        int llbytes = llwrite(buffer, nbytes);
-        printf("\nDATA: Wrote %d bytes\n", llbytes);
+        int llbytes = llwrite(buffer, nbytes + 4);
+        if (llbytes == -1) {
+            printf("ERROR: Connection lost - timeout\n");
+            return;
+        }
+        else
+            printf("\nDATA: Wrote %d bytes\n", llbytes);
+
+        sequence_number = (sequence_number + 1) % 256;
     }
 }
 

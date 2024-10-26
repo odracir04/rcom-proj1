@@ -34,7 +34,7 @@ void sendControlPacket(unsigned char control_number, char* filename) {
 
 void sendDataPackets(char* filename) {
     unsigned char sequence_number = 0;
-    char buffer[4 + MAX_PAYLOAD_SIZE];
+    char buffer[MAX_PAYLOAD_SIZE];
 
     buffer[0] = 2; 
 
@@ -45,7 +45,7 @@ void sendDataPackets(char* filename) {
     }
 
     int nbytes;
-    while ((nbytes = fread(&buffer[4], 1, MAX_PAYLOAD_SIZE, file)) > 0) {
+    while ((nbytes = fread(&buffer[4], 1, MAX_PAYLOAD_SIZE - 4, file)) > 0) {
         buffer[1] = sequence_number;
         buffer[2] = nbytes / 256;
         buffer[3] = nbytes % 256;
@@ -82,7 +82,6 @@ void applicationLayer(const char *serialPort, const char *role, int baudRate,
     connectionParameters.timeout = timeout;
 
     llopen(connectionParameters);
-    FILE *out;
     switch (connectionParameters.role) {
         case LlTx:
             // sendControlPacket(1, filename);
@@ -90,9 +89,10 @@ void applicationLayer(const char *serialPort, const char *role, int baudRate,
             // sendControlPacket(3, filename);
             break;
         case LlRx:
+            FILE *out;
             unsigned char packet[1032] = {0};
 
-            out = fopen("penguin-received.gif", "w");
+            out = fopen(filename, "w");
             int bytes;
             while ((bytes = llread(packet)) > 0) {
                  printf("received %d bytes\n", bytes);
@@ -102,6 +102,5 @@ void applicationLayer(const char *serialPort, const char *role, int baudRate,
             fclose(out);
             break;
     }
-    printf("\nmade it");
     llclose(0);
 }

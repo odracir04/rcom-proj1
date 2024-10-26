@@ -13,7 +13,6 @@ unsigned int getFileSize(char* filename) {
 }
 
 void sendControlPacket(unsigned char control_number, char* filename) {
-    // build control packet
     unsigned int filename_size = strlen(filename);
     unsigned int packet_size = 3 + filename_size + 4;
     char packet[packet_size];
@@ -41,17 +40,17 @@ void sendDataPackets(char* filename) {
 
     FILE* file = fopen(filename, "rb");
     if (file == NULL) {
-        perror("Could not open file");
+        printf("ERROR: Could not open file\n");
         return;
     }
 
     int nbytes;
     while ((nbytes = fread(&buffer[4], 1, MAX_PAYLOAD_SIZE, file)) > 0) {
-        // prep control fields
         buffer[1] = sequence_number;
         buffer[2] = nbytes / 256;
         buffer[3] = nbytes % 256;
 
+        printf("received %d bytes from file\n", nbytes);
         int llbytes = llwrite(buffer, nbytes + 4);
         if (llbytes == -1) {
             printf("ERROR: Connection lost - timeout\n");
@@ -62,6 +61,8 @@ void sendDataPackets(char* filename) {
 
         sequence_number = (sequence_number + 1) % 256;
     }
+
+    fclose(file);
 }
 
 
@@ -89,21 +90,18 @@ void applicationLayer(const char *serialPort, const char *role, int baudRate,
             // sendControlPacket(3, filename);
             break;
         case LlRx:
-            unsigned char packet[1000] = {0};
-            packet[999] = '\0';
-            llread(packet);
+            unsigned char packet[1032] = {0};
 
             out = fopen("penguin-received.gif", "w");
             int bytes;
             while ((bytes = llread(packet)) > 0) {
-                for (int i = 0; i < 999; i++) {
-                    fwrite(&packet[i], 1, sizeof(packet[i]), out);
-                    printf("byte: %02X\n", packet[i]);
-                }
+                 printf("received %d bytes\n", bytes);
+                 int cenas = fwrite(&packet[4], 1, bytes - 4, out);
+                 printf("wrote %d bytes to file\n", cenas);
             }
+            fclose(out);
             break;
     }
-    fclose(out);
     printf("\nmade it");
     llclose(0);
 }

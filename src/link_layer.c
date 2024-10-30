@@ -36,7 +36,7 @@ int llopen(LinkLayer connectionParameters)
     }
 
     connection = connectionParameters;
-    UAState state;
+    FrameState state;
 
     switch (connectionParameters.role) {
         case LlTx:
@@ -222,7 +222,7 @@ int llwrite(const unsigned char *buf, int bufSize)
 
     // Send I frame and await RR or REJ frame
     unsigned char rr[2]; 
-    UAState state = START;
+    FrameState state = START;
         
     while (state != STOP && alarmCount < connection.nRetransmissions) {
         
@@ -321,7 +321,7 @@ int llwrite(const unsigned char *buf, int bufSize)
 int llread(unsigned char *packet)
 {
     unsigned char rr[2];     
-    UAState state = START;
+    FrameState state = START;
     int packet_position = 0;
     unsigned char is7d = FALSE;
     unsigned char bbc2 = 0;
@@ -331,10 +331,6 @@ int llread(unsigned char *packet)
         int bytes = readByte(rr);
         int bcc2 = 0;
     
-        // modify state machine for disconnects
-        // currently not checking C field or BCC2 field
-        // not processing byte stuffing
-        // very shady disconnect mechanism
         if (bytes > 0) {
             printf("packet lenght = %d\n", packet_position);
             printf("Received: %02X\n", rr[0]);
@@ -361,7 +357,7 @@ int llread(unsigned char *packet)
                         } else if (current_frame == 1 && rr[0] == CTRL_I1) {
                             state = C_RCV;
                         } else if (rr[0] == DISC) {
-                            return 0;
+                            state = C_DISC;
                         }
                     }
                     break;
@@ -373,6 +369,12 @@ int llread(unsigned char *packet)
                         state = BCC_OK;
                     }
                     break;
+                case C_DISC:
+                    if (rr[0] == (ADDRESS_TX ^ DISC)) {
+                        state = BCC_DISC;
+                    } else {
+                        state = START;
+                    }
                 case BCC_OK:
                     printf("BCC_OK State: DATA FRAME\n");
                     if (rr[0] == bbc2 && !is7d) {
@@ -380,6 +382,7 @@ int llread(unsigned char *packet)
                         keep = rr[0];
                         state = BCC2_OK;
                     } else if (rr[0] == FLAG) {
+                        stats.totalFrames++;
                         state = STOP;    
                     } else {
                         if (rr[0] == 0x7d) {
@@ -441,6 +444,15 @@ int llread(unsigned char *packet)
                             }
                         }
                     }
+                    break;
+                case BCC_DISC:
+                    if (rr[0] == FLAG) {
+                        stats.totalFrames++;
+                        return 0;
+                    } else {
+                        state = START;
+                    }
+                    break;
                 case STOP:
                     break;
                 }        
@@ -471,16 +483,18 @@ int llread(unsigned char *packet)
 ////////////////////////////////////////////////
 int llclose(int showStatistics)
 {
+    FrameState state;
+    unsigned char disconnect_frame[5];
+
     switch (connection.role) {
         case LlTx:
-            unsigned char disconnect_frame[5];
             disconnect_frame[0] = FLAG;
             disconnect_frame[1] = ADDRESS_TX;
             disconnect_frame[2] = DISC;
             disconnect_frame[3] = ADDRESS_TX ^ DISC;
             disconnect_frame[4] = FLAG;
 
-            UAState state = START; 
+            state = START; 
             alarmCount = 0;
 
             while (state != STOP && alarmCount < 3)
@@ -488,7 +502,7 @@ int llclose(int showStatistics)
             
             if (!alarmEnabled) {
                 stats.totalFrames++;
-                int bytes = writeBytes(disconnect_frame, 5);
+                int bytes = writeBytes(disconnect_frame, CTRL_FRAME_SIZE);
                 alarm(5);
                 alarmEnabled = TRUE;
                 sleep(1);
@@ -550,6 +564,69 @@ int llclose(int showStatistics)
             stats.totalFrames++;
             break;
         case LlRx:
+            disconnect_frame[0] = FLAG;
+            disconnect_frame[1] = ADDRESS_RX;
+            disconnect_frame[2] = DISC;
+            disconnect_frame[3] = ADDRESS_RX ^ DISC;
+            disconnect_frame[4] = FLAG;
+
+            state = START; 
+            alarmCount = 0;
+
+            while (state != STOP && alarmCount < 3)
+            {
+            
+            if (!alarmEnabled) {
+                stats.totalFrames++;
+                int bytes = writeBytes(disconnect_frame, CTRL_FRAME_SIZE);
+                alarm(5);
+                alarmEnabled = TRUE;
+                sleep(1);
+            }    
+
+            int bytes = readByte(disconnect_frame);
+            
+            if (bytes > 0) {
+                switch (state) {
+                    case START:
+                        state = disconnect_frame[0] == FLAG ? FLAG_RCV : START;
+                        break;
+                    case FLAG_RCV:
+                        if (disconnect_frame[0] == FLAG) {
+                            state = FLAG_RCV; 
+                        } else {
+                            state = disconnect_frame[0] == ADDRESS_RX ? A_RCV : START;
+                        }
+                        break;
+                    case A_RCV:
+                        if (disconnect_frame[0] == FLAG) {
+                            state = FLAG_RCV; 
+                        } else {
+                            state = disconnect_frame[0] == CONTROL_UA ? C_RCV : START;
+                        }
+                        break;
+                    case C_RCV:
+                        if (disconnect_frame[0] == FLAG) {
+                            state = FLAG_RCV; 
+                        } else {
+                            state = disconnect_frame[0] == (ADDRESS_RX ^ CONTROL_UA) ? BCC_OK : START;
+                        }
+                        break;
+                    case BCC_OK:
+                        if (disconnect_frame[0] == FLAG) {
+                            stats.totalFrames++;
+                            state = STOP;
+                            alarm(0);
+                            alarmEnabled = FALSE;
+                        } else {
+                            state = START;
+                        }
+                        break;
+                    case STOP:
+                        break;
+                    }        
+                }
+            }
             break;
     }
 

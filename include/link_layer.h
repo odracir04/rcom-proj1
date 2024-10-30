@@ -17,11 +17,13 @@ typedef enum
     A_RCV, 
     C_RCV, 
     C_REJ,
+    C_DISC,
     BCC_OK,
-    BCC_REJ, 
+    BCC_REJ,
+    BCC_DISC, 
     BCC2_OK,
     STOP
-} UAState;
+} FrameState;
 
 typedef struct
 {

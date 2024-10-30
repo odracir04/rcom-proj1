@@ -65,6 +65,30 @@ void sendDataPackets(char* filename) {
     fclose(file);
 }
 
+void receivePackets(char* filename) {
+    FILE *out;
+    unsigned char packet[1032] = {0};
+
+    out = fopen(filename, "w");
+    int bytes;
+    while ((bytes = llread(packet)) > 0) {
+        if (packet[0] == 1) {
+            int filename_length = packet[6];
+            char filename[filename_length + 1];
+            memcpy(filename, packet + 7, filename_length);
+            filename[filename_length] = '\0';
+            printf("Received file: %s\n", filename);
+            int file_size = packet[3] * 256 + packet[4];
+            printf("Total file size: %d bytes\n", file_size);
+        } else {
+            int cenas = fwrite(&packet[4], 1, bytes - 4, out);
+            printf("wrote %d bytes to file\n", cenas);
+        }
+
+        printf("received %d bytes\n", bytes);
+    }
+    fclose(out);
+}
 
 void applicationLayer(const char *serialPort, const char *role, int baudRate,
                       int nTries, int timeout, const char *filename)
@@ -84,22 +108,12 @@ void applicationLayer(const char *serialPort, const char *role, int baudRate,
     llopen(connectionParameters);
     switch (connectionParameters.role) {
         case LlTx:
-            // sendControlPacket(1, filename);
+            sendControlPacket(1, filename);
             sendDataPackets(filename);
             // sendControlPacket(3, filename);
             break;
         case LlRx:
-            FILE *out;
-            unsigned char packet[1032] = {0};
-
-            out = fopen("penguin-received.gif", "w");
-            int bytes;
-            while ((bytes = llread(packet)) > 0) {
-                 printf("received %d bytes\n", bytes);
-                 int cenas = fwrite(&packet[4], 1, bytes - 4, out);
-                 printf("wrote %d bytes to file\n", cenas);
-            }
-            fclose(out);
+            receivePackets(filename);
             break;
     }
     llclose(1);

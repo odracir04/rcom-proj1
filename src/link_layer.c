@@ -119,11 +119,11 @@ int llopen(LinkLayer connectionParameters)
             if (bytes > 0) {
                 switch (state) {
                     case START:
-                        printf("START State\n");
+                        //printf("START State\n");
                         state = buf[0] == FLAG ? FLAG_RCV : START;
                         break;
                     case FLAG_RCV:
-                        printf("FLAG_RCV State\n");
+                        //printf("FLAG_RCV State\n");
                         if (buf[0] == FLAG) {
                             state = FLAG_RCV; 
                         } else {
@@ -131,7 +131,7 @@ int llopen(LinkLayer connectionParameters)
                         }
                         break;
                     case A_RCV:
-                        printf("A_RCV State\n");
+                        //printf("A_RCV State\n");
                         if (buf[0] == FLAG) {
                             state = FLAG_RCV; 
                         } else {
@@ -139,7 +139,7 @@ int llopen(LinkLayer connectionParameters)
                         }
                         break;
                     case C_RCV:
-                        printf("C_RCV State\n");
+                        //printf("C_RCV State\n");
                         if (buf[0] == FLAG) {
                             state = FLAG_RCV; 
                         } else {
@@ -147,7 +147,7 @@ int llopen(LinkLayer connectionParameters)
                         }
                         break;
                     case BCC_OK:
-                        printf("BCC_OK State\n");
+                        //printf("BCC_OK State\n");
                         if (buf[0] == FLAG) {
                             state = STOP;
                             alarm(0);
@@ -170,7 +170,7 @@ int llopen(LinkLayer connectionParameters)
 
             int bytes = writeBytes(buf, CTRL_FRAME_SIZE);
             stats.totalFrames++;
-            printf("%d bytes written\n", bytes);
+            //printf("%d bytes written\n", bytes);
             sleep(1);
             break;
         }
@@ -332,15 +332,15 @@ int llread(unsigned char *packet)
         int bcc2 = 0;
     
         if (bytes > 0) {
-            printf("packet lenght = %d\n", packet_position);
-            printf("Received: %02X\n", rr[0]);
+            //printf("packet lenght = %d\n", packet_position);
+            //printf("Received: %02X\n", rr[0]);
             switch (state) {
                 case START:
                     //printf("START State\n");
                     state = rr[0] == FLAG ? FLAG_RCV : START;
                     break;
                 case FLAG_RCV:
-                    printf("FLAG_RCV State\n");
+                    //printf("FLAG_RCV State\n");
                     if (rr[0] == FLAG) {
                         state = FLAG_RCV; 
                     } else {
@@ -348,7 +348,7 @@ int llread(unsigned char *packet)
                     }
                     break;
                 case A_RCV:
-                    printf("A_RCV State\n");
+                    //printf("A_RCV State\n");
                     if (rr[0] == FLAG) {
                         state = FLAG_RCV; 
                     } else {
@@ -362,7 +362,7 @@ int llread(unsigned char *packet)
                     }
                     break;
                 case C_RCV:
-                    printf("C_RCV State\n");
+                    //printf("C_RCV State\n");
                     if (rr[0] == FLAG) {
                         state = FLAG_RCV; 
                     } else if ((rr[0] == (ADDRESS_TX ^ CTRL_I0) && current_frame == 0) || (rr[0] == (ADDRESS_TX ^ CTRL_I1) && current_frame == 1)) {
@@ -376,7 +376,7 @@ int llread(unsigned char *packet)
                         state = START;
                     }
                 case BCC_OK:
-                    printf("BCC_OK State: DATA FRAME\n");
+                    //printf("BCC_OK State: DATA FRAME\n");
                     if (rr[0] == bbc2 && !is7d) {
                        // printf("BCC2 = %x\n", bbc2);
                         keep = rr[0];
@@ -410,7 +410,7 @@ int llread(unsigned char *packet)
                     }
                     break;
                 case BCC2_OK:
-                    printf("BCC2_OK State\n");
+                    //printf("BCC2_OK State\n");
                     if (rr[0] == FLAG) {
                         stats.totalFrames++;
                         state = STOP;    

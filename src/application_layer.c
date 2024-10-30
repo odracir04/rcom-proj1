@@ -56,8 +56,6 @@ void sendDataPackets(char* filename) {
             printf("ERROR: Connection lost - timeout\n");
             return;
         }
-        else
-            //printf("Sent packet %d: %d bytes\n", sequence_number, llbytes);
 
         sequence_number = (sequence_number + 1) % 256;
     }
@@ -87,7 +85,6 @@ void receivePackets(char* filename) {
         } else if (packet[0] == 2) {
             int bytes = fwrite(&packet[4], 1, llbytes - 4, out);
             if (packet[1] == sequence_number) {
-                //printf("Received packet %d: %d bytes\n", packet[1], bytes);
                 sequence_number = (sequence_number + 1) % 256;
             } else {
                 printf("ERROR: Out of order packet\n");
@@ -97,9 +94,9 @@ void receivePackets(char* filename) {
             char filename[filename_length + 1];
             memcpy(filename, packet + 7, filename_length);
             filename[filename_length] = '\0';
-            /* if (strcmp(write_filename, filename) != 0) {
+            if (strcmp(write_filename, filename) != 0) {
                 printf("ERROR: Wrong file name\n");
-            } */
+            }
             if (file_size != packet[3] * 256 + packet[4]) {
                 printf("ERROR: Wrong file size\n");
             } else {

@@ -36,7 +36,7 @@ int llopen(LinkLayer connectionParameters)
     }
 
     connection = connectionParameters;
-    UAState state;
+    FrameState state;
 
     switch (connectionParameters.role) {
         case LlTx:
@@ -119,11 +119,11 @@ int llopen(LinkLayer connectionParameters)
             if (bytes > 0) {
                 switch (state) {
                     case START:
-                        printf("START State\n");
+                        //printf("START State\n");
                         state = buf[0] == FLAG ? FLAG_RCV : START;
                         break;
                     case FLAG_RCV:
-                        printf("FLAG_RCV State\n");
+                        //printf("FLAG_RCV State\n");
                         if (buf[0] == FLAG) {
                             state = FLAG_RCV; 
                         } else {
@@ -131,7 +131,7 @@ int llopen(LinkLayer connectionParameters)
                         }
                         break;
                     case A_RCV:
-                        printf("A_RCV State\n");
+                        //printf("A_RCV State\n");
                         if (buf[0] == FLAG) {
                             state = FLAG_RCV; 
                         } else {
@@ -139,7 +139,7 @@ int llopen(LinkLayer connectionParameters)
                         }
                         break;
                     case C_RCV:
-                        printf("C_RCV State\n");
+                        //printf("C_RCV State\n");
                         if (buf[0] == FLAG) {
                             state = FLAG_RCV; 
                         } else {
@@ -147,7 +147,7 @@ int llopen(LinkLayer connectionParameters)
                         }
                         break;
                     case BCC_OK:
-                        printf("BCC_OK State\n");
+                        //printf("BCC_OK State\n");
                         if (buf[0] == FLAG) {
                             state = STOP;
                             alarm(0);
@@ -170,7 +170,7 @@ int llopen(LinkLayer connectionParameters)
 
             int bytes = writeBytes(buf, CTRL_FRAME_SIZE);
             stats.totalFrames++;
-            printf("%d bytes written\n", bytes);
+            //printf("%d bytes written\n", bytes);
             sleep(1);
             break;
         }
@@ -222,7 +222,7 @@ int llwrite(const unsigned char *buf, int bufSize)
 
     // Send I frame and await RR or REJ frame
     unsigned char rr[2]; 
-    UAState state = START;
+    FrameState state = START;
         
     while (state != STOP && alarmCount < connection.nRetransmissions) {
         
@@ -299,7 +299,7 @@ int llwrite(const unsigned char *buf, int bufSize)
                         stats.rejectedFrames++;
                         stats.retransmissions++;
                         stats.totalFrames++;
-                        state = STOP;
+                        state = START;
                         alarm(0);
                         alarmEnabled = FALSE;
                         printf("REJECTED\n");
@@ -313,7 +313,7 @@ int llwrite(const unsigned char *buf, int bufSize)
         }
     }
 
-    return alarmCount == 3 ? -1 : current_position + 2;
+    return alarmCount == 3 ? -1 : current_position;
 }
 
 ////////////////////////////////////////////////
@@ -322,7 +322,7 @@ int llwrite(const unsigned char *buf, int bufSize)
 int llread(unsigned char *packet)
 {
     unsigned char rr[2];     
-    UAState state = START;
+    FrameState state = START;
     int packet_position = 0;
     unsigned char is7d = FALSE;
     unsigned char bbc2 = 0;
@@ -333,20 +333,16 @@ int llread(unsigned char *packet)
         int bytes = readByte(rr);
         int bcc2 = 0;
     
-        // modify state machine for disconnects
-        // currently not checking C field or BCC2 field
-        // not processing byte stuffing
-        // very shady disconnect mechanism
         if (bytes > 0) {
-            printf("packet lenght = %d\n", packet_position);
-            printf("Received: %02X\n", rr[0]);
+            //printf("packet lenght = %d\n", packet_position);
+            //printf("Received: %02X\n", rr[0]);
             switch (state) {
                 case START:
                     //printf("START State\n");
                     state = rr[0] == FLAG ? FLAG_RCV : START;
                     break;
                 case FLAG_RCV:
-                    printf("FLAG_RCV State\n");
+                    //printf("FLAG_RCV State\n");
                     if (rr[0] == FLAG) {
                         state = FLAG_RCV; 
                     } else {
@@ -354,7 +350,7 @@ int llread(unsigned char *packet)
                     }
                     break;
                 case A_RCV:
-                    printf("A_RCV State\n");
+                    //printf("A_RCV State\n");
                     if (rr[0] == FLAG) {
                         state = FLAG_RCV; 
                     } else {
@@ -363,12 +359,14 @@ int llread(unsigned char *packet)
                         } else if (current_frame == 1 && rr[0] == CTRL_I1) {
                             state = C_RCV;
                         } else if (rr[0] == DISC) {
-                            return 0;
+                            state = C_DISC;
+                        } else {
+                            state = START;
                         }
                     }
                     break;
                 case C_RCV:
-                    printf("C_RCV State\n");
+                    //printf("C_RCV State\n");
                     if (rr[0] == FLAG) {
                         state = FLAG_RCV; 
                     } else if ((rr[0] == (ADDRESS_TX ^ CTRL_I0) && current_frame == 0) || (rr[0] == (ADDRESS_TX ^ CTRL_I1) && current_frame == 1)) {
@@ -377,14 +375,24 @@ int llread(unsigned char *packet)
                         state = ERROR;
                     }
                     break;
+                case C_DISC:
+                    if (rr[0] == (ADDRESS_TX ^ DISC)) {
+                        state = BCC_DISC;
+                    } else {
+                        state = ERROR;
+                    }
                 case BCC_OK:
-                    printf("BCC_OK State: DATA FRAME\n");
+                    //printf("BCC_OK State: DATA FRAME\n");
                     if (rr[0] == bbc2 && !is7d) {
                        // printf("BCC2 = %x\n", bbc2);
                         keep = rr[0];
                         state = BCC2_OK;
                     } else if (rr[0] == FLAG) {
-                        state = ERROR;
+                        if (bbc2 == 0) {
+                            state = STOP;
+                        } else {
+                            state = ERROR;
+                        }
                         break;
                     } else {
                         if (rr[0] == 0x7d) {
@@ -412,10 +420,15 @@ int llread(unsigned char *packet)
                     }
                     break;
                 case BCC2_OK:
-                    printf("BCC2_OK State\n");
+                    //printf("BCC2_OK State\n");
+                    //printf("keep: %x bcc: %x\n", keep, bbc2);
                     if (rr[0] == FLAG) {
-                        stats.totalFrames++;
-                        state = STOP;    
+                        if ((bbc2 ^ keep) == 0) {
+                            stats.totalFrames++;
+                            state = STOP;
+                        } else {
+                            state = ERROR;
+                        }  
                     } else {
                         state = BCC_OK;
                         if (keep == 0x7d) {
@@ -438,6 +451,7 @@ int llread(unsigned char *packet)
                                 is7d = TRUE;
                                 continue;
                             } if (rr[0] == bbc2) {
+                                bbc2 ^= rr[0];
                                 continue;
                             } else {
                                 packet[packet_position] = rr[0];
@@ -447,8 +461,18 @@ int llread(unsigned char *packet)
                         }
                     }
                     break;
+                case BCC_DISC:
+                    if (rr[0] == FLAG) {
+                        stats.totalFrames++;
+                        return 0;
+                    } else {
+                        state = ERROR;
+                    }
+                    break;
                 case ERROR:
                     stats.rejectedFrames++;
+                    stats.totalFrames += 2;
+                    stats.retransmissions++;
                     buf[0] = FLAG;
                     buf[1] = ADDRESS_TX;
                     if (current_frame == 0) {
@@ -461,7 +485,6 @@ int llread(unsigned char *packet)
 
                     int bytes = writeBytes(buf, 5);
                     sleep(1);
-                    stats.totalFrames++;
                     state = START;
 
                     packet_position = 0;
@@ -498,16 +521,18 @@ int llread(unsigned char *packet)
 ////////////////////////////////////////////////
 int llclose(int showStatistics)
 {
+    FrameState state;
+    unsigned char disconnect_frame[5];
+
     switch (connection.role) {
         case LlTx:
-            unsigned char disconnect_frame[5];
             disconnect_frame[0] = FLAG;
             disconnect_frame[1] = ADDRESS_TX;
             disconnect_frame[2] = DISC;
             disconnect_frame[3] = ADDRESS_TX ^ DISC;
             disconnect_frame[4] = FLAG;
 
-            UAState state = START; 
+            state = START; 
             alarmCount = 0;
 
             while (state != STOP && alarmCount < 3)
@@ -515,7 +540,7 @@ int llclose(int showStatistics)
             
             if (!alarmEnabled) {
                 stats.totalFrames++;
-                int bytes = writeBytes(disconnect_frame, 5);
+                int bytes = writeBytes(disconnect_frame, CTRL_FRAME_SIZE);
                 alarm(5);
                 alarmEnabled = TRUE;
                 sleep(1);
@@ -577,6 +602,69 @@ int llclose(int showStatistics)
             stats.totalFrames++;
             break;
         case LlRx:
+            disconnect_frame[0] = FLAG;
+            disconnect_frame[1] = ADDRESS_RX;
+            disconnect_frame[2] = DISC;
+            disconnect_frame[3] = ADDRESS_RX ^ DISC;
+            disconnect_frame[4] = FLAG;
+
+            state = START; 
+            alarmCount = 0;
+
+            while (state != STOP && alarmCount < 3)
+            {
+            
+            if (!alarmEnabled) {
+                stats.totalFrames++;
+                int bytes = writeBytes(disconnect_frame, CTRL_FRAME_SIZE);
+                alarm(5);
+                alarmEnabled = TRUE;
+                sleep(1);
+            }    
+
+            int bytes = readByte(disconnect_frame);
+            
+            if (bytes > 0) {
+                switch (state) {
+                    case START:
+                        state = disconnect_frame[0] == FLAG ? FLAG_RCV : START;
+                        break;
+                    case FLAG_RCV:
+                        if (disconnect_frame[0] == FLAG) {
+                            state = FLAG_RCV; 
+                        } else {
+                            state = disconnect_frame[0] == ADDRESS_RX ? A_RCV : START;
+                        }
+                        break;
+                    case A_RCV:
+                        if (disconnect_frame[0] == FLAG) {
+                            state = FLAG_RCV; 
+                        } else {
+                            state = disconnect_frame[0] == CONTROL_UA ? C_RCV : START;
+                        }
+                        break;
+                    case C_RCV:
+                        if (disconnect_frame[0] == FLAG) {
+                            state = FLAG_RCV; 
+                        } else {
+                            state = disconnect_frame[0] == (ADDRESS_RX ^ CONTROL_UA) ? BCC_OK : START;
+                        }
+                        break;
+                    case BCC_OK:
+                        if (disconnect_frame[0] == FLAG) {
+                            stats.totalFrames++;
+                            state = STOP;
+                            alarm(0);
+                            alarmEnabled = FALSE;
+                        } else {
+                            state = START;
+                        }
+                        break;
+                    case STOP:
+                        break;
+                    }        
+                }
+            }
             break;
     }
 

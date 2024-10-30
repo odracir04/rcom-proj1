@@ -1,13 +1,14 @@
 #include "../include/alarm.h"
-#include <stdio.h>
+#include "../include/link_layer.h"
 
 int alarmEnabled = FALSE;
 int alarmCount = 0;
+extern LinkLayerStats stats;
 
 void alarmHandler(int signal)
 {
     alarmEnabled = FALSE;
     alarmCount++;
-
-    printf("\nAlarm #%d\n", alarmCount);
+    stats.timeouts++;
+    if (alarmCount < 3) stats.retransmissions++;
 }

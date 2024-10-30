@@ -102,5 +102,5 @@ void applicationLayer(const char *serialPort, const char *role, int baudRate,
             fclose(out);
             break;
     }
-    llclose(0);
+    llclose(1);
 }

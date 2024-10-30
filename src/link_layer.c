@@ -20,6 +20,7 @@ extern int alarmCount;
 
 int current_frame = 0;
 LinkLayer connection;
+LinkLayerStats stats = {0};
 
 ////////////////////////////////////////////////
 // LLOPEN
@@ -39,10 +40,8 @@ int llopen(LinkLayer connectionParameters)
 
     switch (connectionParameters.role) {
         case LlTx:
-            // Set alarm function handler
             (void)signal(SIGALRM, alarmHandler);
 
-            // Create SET frame to send
             unsigned char set_frame[CTRL_FRAME_SIZE] = {0};
 
             set_frame[0] = FLAG;
@@ -51,12 +50,13 @@ int llopen(LinkLayer connectionParameters)
             set_frame[3] = ADDRESS_TX ^ CONTROL_SET;
             set_frame[4] = FLAG;
 
-            // Transmit SET and wait for UA
             state = START; 
             while (state != STOP && alarmCount < connectionParameters.nRetransmissions)
             {
             
             if (!alarmEnabled) {
+                stats.totalFrames++;
+
                 int bytes = writeBytes(set_frame, CTRL_FRAME_SIZE);
                 alarm(connectionParameters.timeout);
                 alarmEnabled = TRUE;
@@ -96,6 +96,7 @@ int llopen(LinkLayer connectionParameters)
                             state = STOP;
                             alarm(0);
                             alarmEnabled = FALSE;
+                            stats.totalFrames++;
                         } else {
                             state = START;
                         }
@@ -107,7 +108,6 @@ int llopen(LinkLayer connectionParameters)
             }
             break;
         case LlRx:
-            // Create SET frame
             unsigned char buf[CTRL_FRAME_SIZE] = {0};
 
             state = START; 
@@ -151,6 +151,7 @@ int llopen(LinkLayer connectionParameters)
                         if (buf[0] == FLAG) {
                             state = STOP;
                             alarm(0);
+                            stats.totalFrames++;
                         } else {
                             state = START;
                         }
@@ -168,6 +169,7 @@ int llopen(LinkLayer connectionParameters)
             buf[4] = FLAG;
 
             int bytes = writeBytes(buf, CTRL_FRAME_SIZE);
+            stats.totalFrames++;
             printf("%d bytes written\n", bytes);
             sleep(1);
             break;
@@ -206,8 +208,17 @@ int llwrite(const unsigned char *buf, int bufSize)
         }
     }
         
-    frame[current_position] = bcc2;
-    frame[current_position + 1] = FLAG;
+    if (bcc2 == FLAG || bcc2 == ESCAPE) {
+            frame[current_position] = ESCAPE;
+            current_position++;
+            frame[current_position] = bcc2 ^ 0x20;
+            current_position++;
+        } else {
+            frame[current_position] = bcc2;
+            current_position++;
+    }
+
+    frame[current_position] = FLAG;
 
     // Send I frame and await RR or REJ frame
     unsigned char rr[2]; 
@@ -216,10 +227,8 @@ int llwrite(const unsigned char *buf, int bufSize)
     while (state != STOP && alarmCount < connection.nRetransmissions) {
         
         if (!alarmEnabled) {
-            int nbytes = writeBytes(frame, current_position + 2);
-            /* for (int i = 0; i < nbytes; i++) {
-                printf(":%x", frame[i]);
-            }  */  
+            stats.totalFrames++;
+            int nbytes = writeBytes(frame, current_position + 2); 
             alarm(connection.timeout);
             alarmEnabled = TRUE;
             sleep(1);
@@ -280,12 +289,16 @@ int llwrite(const unsigned char *buf, int bufSize)
                         state = STOP;
                         alarm(0);
                         alarmEnabled = FALSE;
+                        stats.totalFrames++;
                     } else {
                         state = START;
                     }
                     break;
                 case BCC_REJ:
                     if (rr[0] == FLAG) {
+                        stats.rejectedFrames++;
+                        stats.retransmissions++;
+                        stats.totalFrames++;
                         state = START;
                         alarm(0);
                         alarmEnabled = FALSE;
@@ -395,6 +408,7 @@ int llread(unsigned char *packet)
                 case BCC2_OK:
                     printf("BCC2_OK State\n");
                     if (rr[0] == FLAG) {
+                        stats.totalFrames++;
                         state = STOP;    
                     } else {
                         state = BCC_OK;
@@ -414,8 +428,10 @@ int llread(unsigned char *packet)
                             bbc2 ^= keep;
                             packet[packet_position] = keep;
                             packet_position++;
-                            if (rr[0] == 0x7d || rr[0] == bbc2) {
+                            if (rr[0] == 0x7d) {
                                 is7d = TRUE;
+                                continue;
+                            } else if (rr[0] == bbc2) {
                                 continue;
                             } else {
                                 packet[packet_position] = rr[0];
@@ -444,8 +460,8 @@ int llread(unsigned char *packet)
     buf[4] = FLAG;
 
     int bytes = writeBytes(buf, 5);
-    printf("RR%d: %d bytes written\n", current_frame, bytes);
     sleep(1);
+    stats.totalFrames++;
     return packet_position;
 }
 
@@ -470,8 +486,8 @@ int llclose(int showStatistics)
             {
             
             if (!alarmEnabled) {
+                stats.totalFrames++;
                 int bytes = writeBytes(disconnect_frame, 5);
-                printf("DISCONNECT: %d bytes written\n", bytes);
                 alarm(5);
                 alarmEnabled = TRUE;
                 sleep(1);
@@ -507,6 +523,7 @@ int llclose(int showStatistics)
                         break;
                     case BCC_OK:
                         if (disconnect_frame[0] == FLAG) {
+                            stats.totalFrames++;
                             state = STOP;
                             alarm(0);
                             alarmEnabled = FALSE;
@@ -515,7 +532,6 @@ int llclose(int showStatistics)
                         }
                         break;
                     case STOP:
-                        printf("Received DISC frame\n");
                         break;
                     }        
                 }
@@ -530,10 +546,20 @@ int llclose(int showStatistics)
             ua[4] = FLAG;
 
             writeBytes(ua, 5);
-            printf("DISC-UA: Disconnected\n");
+            stats.totalFrames++;
             break;
         case LlRx:
             break;
+    }
+
+    if (showStatistics) {
+        printf("\nCommunication Summary:\n");
+        printf("------------------------------------\n");
+        printf("Total Frames: %d\n", stats.totalFrames);
+        printf("Rejected Frames: %d\n", stats.rejectedFrames);
+        printf("Timeouts: %d\n", stats.timeouts);
+        printf("Retransmissions: %d\n", stats.retransmissions);
+        printf("%% of retransmissions in total: %.2lf%%\n", stats.retransmissions * 1.0 / stats.totalFrames * 100);
     }
 
     int clstat = closeSerialPort();

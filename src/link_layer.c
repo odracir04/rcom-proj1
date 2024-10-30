@@ -299,9 +299,10 @@ int llwrite(const unsigned char *buf, int bufSize)
                         stats.rejectedFrames++;
                         stats.retransmissions++;
                         stats.totalFrames++;
-                        state = START;
+                        state = STOP;
                         alarm(0);
                         alarmEnabled = FALSE;
+                        printf("REJECTED\n");
                     } else {
                         state = START;
                     }
@@ -326,6 +327,7 @@ int llread(unsigned char *packet)
     unsigned char is7d = FALSE;
     unsigned char bbc2 = 0;
     unsigned char keep = 0;
+    unsigned char buf[5];
         
     while (state != STOP) {
         int bytes = readByte(rr);
@@ -371,6 +373,8 @@ int llread(unsigned char *packet)
                         state = FLAG_RCV; 
                     } else if ((rr[0] == (ADDRESS_TX ^ CTRL_I0) && current_frame == 0) || (rr[0] == (ADDRESS_TX ^ CTRL_I1) && current_frame == 1)) {
                         state = BCC_OK;
+                    } else {
+                        state = ERROR;
                     }
                     break;
                 case BCC_OK:
@@ -380,7 +384,8 @@ int llread(unsigned char *packet)
                         keep = rr[0];
                         state = BCC2_OK;
                     } else if (rr[0] == FLAG) {
-                        state = STOP;    
+                        state = ERROR;
+                        break;
                     } else {
                         if (rr[0] == 0x7d) {
                             is7d = TRUE;
@@ -441,13 +446,35 @@ int llread(unsigned char *packet)
                             }
                         }
                     }
+                    break;
+                case ERROR:
+                    stats.rejectedFrames++;
+                    buf[0] = FLAG;
+                    buf[1] = ADDRESS_TX;
+                    if (current_frame == 0) {
+                        buf[2] = REJ0;
+                    } else {
+                        buf[2] = REJ1;
+                    }
+                    buf[3] = ADDRESS_TX ^ buf[2];
+                    buf[4] = FLAG;
+
+                    int bytes = writeBytes(buf, 5);
+                    sleep(1);
+                    stats.totalFrames++;
+                    state = START;
+
+                    packet_position = 0;
+                    is7d = FALSE;
+                    bbc2 = 0;
+                    keep = 0;
+                    break;
                 case STOP:
                     break;
                 }        
         }
     }
 
-    unsigned char buf[5];
     buf[0] = FLAG;
     buf[1] = ADDRESS_TX;
     if (current_frame == 0) {

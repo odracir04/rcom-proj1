@@ -20,7 +20,8 @@ typedef enum
     BCC_OK,
     BCC_REJ, 
     BCC2_OK,
-    STOP
+    STOP,
+    ERROR
 } UAState;
 
 typedef struct

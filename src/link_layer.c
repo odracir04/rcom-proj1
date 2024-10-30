@@ -418,8 +418,10 @@ int llread(unsigned char *packet)
                             bbc2 ^= keep;
                             packet[packet_position] = keep;
                             packet_position++;
-                            if (rr[0] == 0x7d || rr[0] == bbc2) {
+                            if (rr[0] == 0x7d) {
                                 is7d = TRUE;
+                                continue;
+                            } if (rr[0] == bbc2) {
                                 continue;
                             } else {
                                 packet[packet_position] = rr[0];

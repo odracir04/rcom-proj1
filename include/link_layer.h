@@ -16,7 +16,9 @@ typedef enum
     FLAG_RCV, 
     A_RCV, 
     C_RCV, 
-    BCC_OK, 
+    C_REJ,
+    BCC_OK,
+    BCC_REJ, 
     BCC2_OK,
     STOP
 } UAState;

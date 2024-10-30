@@ -302,6 +302,7 @@ int llwrite(const unsigned char *buf, int bufSize)
                         state = START;
                         alarm(0);
                         alarmEnabled = FALSE;
+                        printf("REJECTED\n");
                     } else {
                         state = START;
                     }
@@ -312,7 +313,7 @@ int llwrite(const unsigned char *buf, int bufSize)
         }
     }
 
-    return alarmCount == 3 ? -1 : current_position + 2;
+    return alarmCount == 3 ? -1 : current_position;
 }
 
 ////////////////////////////////////////////////
@@ -326,6 +327,7 @@ int llread(unsigned char *packet)
     unsigned char is7d = FALSE;
     unsigned char bbc2 = 0;
     unsigned char keep = 0;
+    unsigned char buf[5];
         
     while (state != STOP) {
         int bytes = readByte(rr);
@@ -358,6 +360,8 @@ int llread(unsigned char *packet)
                             state = C_RCV;
                         } else if (rr[0] == DISC) {
                             state = C_DISC;
+                        } else {
+                            state = START;
                         }
                     }
                     break;
@@ -367,13 +371,15 @@ int llread(unsigned char *packet)
                         state = FLAG_RCV; 
                     } else if ((rr[0] == (ADDRESS_TX ^ CTRL_I0) && current_frame == 0) || (rr[0] == (ADDRESS_TX ^ CTRL_I1) && current_frame == 1)) {
                         state = BCC_OK;
+                    } else {
+                        state = ERROR;
                     }
                     break;
                 case C_DISC:
                     if (rr[0] == (ADDRESS_TX ^ DISC)) {
                         state = BCC_DISC;
                     } else {
-                        state = START;
+                        state = ERROR;
                     }
                 case BCC_OK:
                     //printf("BCC_OK State: DATA FRAME\n");
@@ -382,8 +388,12 @@ int llread(unsigned char *packet)
                         keep = rr[0];
                         state = BCC2_OK;
                     } else if (rr[0] == FLAG) {
-                        stats.totalFrames++;
-                        state = STOP;    
+                        if (bbc2 == 0) {
+                            state = STOP;
+                        } else {
+                            state = ERROR;
+                        }
+                        break;
                     } else {
                         if (rr[0] == 0x7d) {
                             is7d = TRUE;
@@ -411,9 +421,14 @@ int llread(unsigned char *packet)
                     break;
                 case BCC2_OK:
                     //printf("BCC2_OK State\n");
+                    //printf("keep: %x bcc: %x\n", keep, bbc2);
                     if (rr[0] == FLAG) {
-                        stats.totalFrames++;
-                        state = STOP;    
+                        if ((bbc2 ^ keep) == 0) {
+                            stats.totalFrames++;
+                            state = STOP;
+                        } else {
+                            state = ERROR;
+                        }  
                     } else {
                         state = BCC_OK;
                         if (keep == 0x7d) {
@@ -436,6 +451,7 @@ int llread(unsigned char *packet)
                                 is7d = TRUE;
                                 continue;
                             } if (rr[0] == bbc2) {
+                                bbc2 ^= rr[0];
                                 continue;
                             } else {
                                 packet[packet_position] = rr[0];
@@ -450,8 +466,31 @@ int llread(unsigned char *packet)
                         stats.totalFrames++;
                         return 0;
                     } else {
-                        state = START;
+                        state = ERROR;
                     }
+                    break;
+                case ERROR:
+                    stats.rejectedFrames++;
+                    stats.totalFrames += 2;
+                    stats.retransmissions++;
+                    buf[0] = FLAG;
+                    buf[1] = ADDRESS_TX;
+                    if (current_frame == 0) {
+                        buf[2] = REJ0;
+                    } else {
+                        buf[2] = REJ1;
+                    }
+                    buf[3] = ADDRESS_TX ^ buf[2];
+                    buf[4] = FLAG;
+
+                    int bytes = writeBytes(buf, 5);
+                    sleep(1);
+                    state = START;
+
+                    packet_position = 0;
+                    is7d = FALSE;
+                    bbc2 = 0;
+                    keep = 0;
                     break;
                 case STOP:
                     break;
@@ -459,7 +498,6 @@ int llread(unsigned char *packet)
         }
     }
 
-    unsigned char buf[5];
     buf[0] = FLAG;
     buf[1] = ADDRESS_TX;
     if (current_frame == 0) {

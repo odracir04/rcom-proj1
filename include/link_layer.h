@@ -22,6 +22,7 @@ typedef enum
     BCC_REJ,
     BCC_DISC, 
     BCC2_OK,
+    ERROR,
     STOP
 } FrameState;
 

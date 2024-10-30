@@ -50,7 +50,6 @@ void sendDataPackets(char* filename) {
         buffer[2] = nbytes / 256;
         buffer[3] = nbytes % 256;
 
-        printf("received %d bytes from file\n", nbytes);
         int llbytes = llwrite(buffer, nbytes + 4);
         if (llbytes == -1) {
             printf("ERROR: Connection lost - timeout\n");
@@ -67,12 +66,12 @@ void sendDataPackets(char* filename) {
 
 void receivePackets(char* filename) {
     FILE *out;
-    unsigned char packet[1032] = {0};
+    unsigned char packet[2000] = {0};
 
     out = fopen(filename, "w");
     int bytes;
     while ((bytes = llread(packet)) > 0) {
-        if (packet[0] == 1) {
+        if (packet[0] == 1 || packet[0] == 3) {
             int filename_length = packet[6];
             char filename[filename_length + 1];
             memcpy(filename, packet + 7, filename_length);
@@ -82,10 +81,8 @@ void receivePackets(char* filename) {
             printf("Total file size: %d bytes\n", file_size);
         } else {
             int cenas = fwrite(&packet[4], 1, bytes - 4, out);
-            printf("wrote %d bytes to file\n", cenas);
+            printf("Wrote %d bytes to file\n", cenas);
         }
-
-        printf("received %d bytes\n", bytes);
     }
     fclose(out);
 }
@@ -110,11 +107,11 @@ void applicationLayer(const char *serialPort, const char *role, int baudRate,
         case LlTx:
             sendControlPacket(1, filename);
             sendDataPackets(filename);
-            // sendControlPacket(3, filename);
+            sendControlPacket(3, filename);
             break;
         case LlRx:
             receivePackets(filename);
             break;
     }
-    llclose(1);
+    llclose(TRUE);
 }

@@ -1,5 +1,5 @@
 #include "../include/alarm.h"
-#include "../include/link_layer.h"
+#include "../include/stats.h"
 
 int alarmEnabled = FALSE;
 int alarmCount = 0;

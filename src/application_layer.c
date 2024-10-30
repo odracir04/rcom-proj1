@@ -46,7 +46,7 @@ void sendDataPackets(char* filename) {
     }
 
     int nbytes;
-    while ((nbytes = fread(&buffer[4], 1, MAX_PAYLOAD_SIZE, file)) > 0) {
+    while ((nbytes = fread(&buffer[4], 1, MAX_PAYLOAD_SIZE - 4, file)) > 0) {
         // prep control fields
         buffer[1] = sequence_number;
         buffer[2] = nbytes / 256;
@@ -89,17 +89,14 @@ void applicationLayer(const char *serialPort, const char *role, int baudRate,
             // sendControlPacket(3, filename);
             break;
         case LlRx:
-            unsigned char packet[1000] = {0};
-            packet[999] = '\0';
-            llread(packet);
+            unsigned char packet[20] = {0};
 
-            out = fopen("penguin-received.gif", "w");
+            
             int bytes;
             while ((bytes = llread(packet)) > 0) {
-                for (int i = 0; i < 999; i++) {
-                    fwrite(&packet[i], 1, sizeof(packet[i]), out);
-                    printf("byte: %02X\n", packet[i]);
-                }
+                out = fopen("penguin-received.gif", "a");
+                fwrite(&packet[4], 1, bytes, out);
+                fclose(out);
             }
             break;
     }

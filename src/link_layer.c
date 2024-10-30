@@ -296,6 +296,8 @@ int llread(unsigned char *packet)
     unsigned char is7d = FALSE;
     unsigned char bbc2 = 0;
     unsigned char keep = 0;
+    FILE *in;
+    in = fopen("received.txt", "a");
         
     while (state != STOP) {
         int bytes = readByte(rr);
@@ -306,7 +308,9 @@ int llread(unsigned char *packet)
         // not processing byte stuffing
         // very shady disconnect mechanism
         if (bytes > 0) {
+            printf("packet lenght = %d\n", packet_position);
             printf("Received: %02X\n", rr[0]);
+            fprintf(in, "Received: %02X\n", rr[0]);
             switch (state) {
                 case START:
                     printf("START State\n");
@@ -357,11 +361,13 @@ int llread(unsigned char *packet)
                                 packet[packet_position] = 0x7e;
                                 bbc2 ^= 0x7e;
                                 printf("BCC2 = %x\n", bbc2);
+                                fprintf(in, "received\n");
                                 packet_position++;
                             } else if (rr[0] == 0x5d) {
                                 packet[packet_position] = 0x7d;
                                 bbc2 ^= 0x7d;
                                 printf("BCC2 = %x\n", bbc2);
+                                fprintf(in, "received\n");
                                 packet_position++;
                             } else return -1;
                             is7d = FALSE;
@@ -370,6 +376,7 @@ int llread(unsigned char *packet)
                         packet[packet_position] = rr[0];
                         bbc2 ^= rr[0];
                         printf("BCC2 = %x\n", bbc2);
+                        fprintf(in, "received\n");
                         packet_position++;
                     }
                     break;
@@ -384,11 +391,13 @@ int llread(unsigned char *packet)
                                 packet[packet_position] = 0x7e;
                                 bbc2 ^= 0x7e;
                                 printf("BCC2 = %x\n", bbc2);
+                                fprintf(in, "received\n");
                                 packet_position++;
                             } else if (rr[0] == 0x5d) {
                                 packet[packet_position] = 0x7d;
                                 bbc2 ^= 0x7d;
                                 printf("BCC2 = %x\n", bbc2);
+                                fprintf(in, "received\n");
                                 packet_position++;
                             } else return -1;
                         } else {
@@ -425,6 +434,7 @@ int llread(unsigned char *packet)
     int bytes = writeBytes(buf, 5);
     printf("RR: %d bytes written\n", bytes);
     sleep(1);
+    fclose(in);
     return packet_position;
 }
 

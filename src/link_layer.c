@@ -312,8 +312,6 @@ int llread(unsigned char *packet)
     unsigned char is7d = FALSE;
     unsigned char bbc2 = 0;
     unsigned char keep = 0;
-    FILE *in;
-    in = fopen("received.txt", "a");
         
     while (state != STOP) {
         int bytes = readByte(rr);
@@ -326,7 +324,6 @@ int llread(unsigned char *packet)
         if (bytes > 0) {
             printf("packet lenght = %d\n", packet_position);
             printf("Received: %02X\n", rr[0]);
-            fprintf(in, "Received: %02X\n", rr[0]);
             switch (state) {
                 case START:
                     //printf("START State\n");
@@ -451,7 +448,6 @@ int llread(unsigned char *packet)
     int bytes = writeBytes(buf, 5);
     printf("RR%d: %d bytes written\n", current_frame, bytes);
     sleep(1);
-    fclose(in);
     return packet_position;
 }
 

@@ -125,7 +125,7 @@ int llopen(LinkLayer connectionParameters)
                     case FLAG_RCV:
                         printf("FLAG_RCV State\n");
                         if (buf[0] == FLAG) {
-                            state = FLAG; 
+                            state = FLAG_RCV; 
                         } else {
                             state = buf[0] == ADDRESS_TX ? A_RCV : START;
                         }
@@ -133,7 +133,7 @@ int llopen(LinkLayer connectionParameters)
                     case A_RCV:
                         printf("A_RCV State\n");
                         if (buf[0] == FLAG) {
-                            state = FLAG; 
+                            state = FLAG_RCV; 
                         } else {
                             state = buf[0] == CONTROL_SET ? C_RCV : START;
                         }
@@ -141,7 +141,7 @@ int llopen(LinkLayer connectionParameters)
                     case C_RCV:
                         printf("C_RCV State\n");
                         if (buf[0] == FLAG) {
-                            state = FLAG; 
+                            state = FLAG_RCV; 
                         } else {
                             state = buf[0] == (ADDRESS_TX ^ CONTROL_SET) ? BCC_OK : START;
                         }
@@ -336,6 +336,7 @@ int llread(unsigned char *packet)
         // not processing byte stuffing
         // very shady disconnect mechanism
         if (bytes > 0) {
+            printf("packet lenght = %d\n", packet_position);
             printf("Received: %02X\n", rr[0]);
             switch (state) {
                 case START:
@@ -431,7 +432,7 @@ int llread(unsigned char *packet)
                             if (rr[0] == 0x7d) {
                                 is7d = TRUE;
                                 continue;
-                            } else if (rr[0] == bbc2) {
+                            } if (rr[0] == bbc2) {
                                 continue;
                             } else {
                                 packet[packet_position] = rr[0];
@@ -502,21 +503,21 @@ int llclose(int showStatistics)
                         break;
                     case FLAG_RCV:
                         if (disconnect_frame[0] == FLAG) {
-                            state = FLAG; 
+                            state = FLAG_RCV; 
                         } else {
                             state = disconnect_frame[0] == ADDRESS_RX ? A_RCV : START;
                         }
                         break;
                     case A_RCV:
                         if (disconnect_frame[0] == FLAG) {
-                            state = FLAG; 
+                            state = FLAG_RCV; 
                         } else {
                             state = disconnect_frame[0] == DISC ? C_RCV : START;
                         }
                         break;
                     case C_RCV:
                         if (disconnect_frame[0] == FLAG) {
-                            state = FLAG; 
+                            state = FLAG_RCV; 
                         } else {
                             state = disconnect_frame[0] == (ADDRESS_RX ^ DISC) ? BCC_OK : START;
                         }

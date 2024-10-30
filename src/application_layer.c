@@ -92,7 +92,7 @@ void applicationLayer(const char *serialPort, const char *role, int baudRate,
             FILE *out;
             unsigned char packet[1032] = {0};
 
-            out = fopen(filename, "w");
+            out = fopen("penguin-received.gif", "w");
             int bytes;
             while ((bytes = llread(packet)) > 0) {
                  printf("received %d bytes\n", bytes);

@@ -107,7 +107,6 @@ int llopen(LinkLayer connectionParameters)
             }
             break;
         case LlRx:
-            // Create SET frame
             unsigned char buf[CTRL_FRAME_SIZE] = {0};
 
             state = START; 
@@ -125,7 +124,7 @@ int llopen(LinkLayer connectionParameters)
                     case FLAG_RCV:
                         printf("FLAG_RCV State\n");
                         if (buf[0] == FLAG) {
-                            state = FLAG; 
+                            state = FLAG_RCV; 
                         } else {
                             state = buf[0] == ADDRESS_TX ? A_RCV : START;
                         }
@@ -133,7 +132,7 @@ int llopen(LinkLayer connectionParameters)
                     case A_RCV:
                         printf("A_RCV State\n");
                         if (buf[0] == FLAG) {
-                            state = FLAG; 
+                            state = FLAG_RCV; 
                         } else {
                             state = buf[0] == CONTROL_SET ? C_RCV : START;
                         }
@@ -141,7 +140,7 @@ int llopen(LinkLayer connectionParameters)
                     case C_RCV:
                         printf("C_RCV State\n");
                         if (buf[0] == FLAG) {
-                            state = FLAG; 
+                            state = FLAG_RCV; 
                         } else {
                             state = buf[0] == (ADDRESS_TX ^ CONTROL_SET) ? BCC_OK : START;
                         }
@@ -493,21 +492,21 @@ int llclose(int showStatistics)
                         break;
                     case FLAG_RCV:
                         if (disconnect_frame[0] == FLAG) {
-                            state = FLAG; 
+                            state = FLAG_RCV; 
                         } else {
                             state = disconnect_frame[0] == ADDRESS_RX ? A_RCV : START;
                         }
                         break;
                     case A_RCV:
                         if (disconnect_frame[0] == FLAG) {
-                            state = FLAG; 
+                            state = FLAG_RCV; 
                         } else {
                             state = disconnect_frame[0] == DISC ? C_RCV : START;
                         }
                         break;
                     case C_RCV:
                         if (disconnect_frame[0] == FLAG) {
-                            state = FLAG; 
+                            state = FLAG_RCV; 
                         } else {
                             state = disconnect_frame[0] == (ADDRESS_RX ^ DISC) ? BCC_OK : START;
                         }

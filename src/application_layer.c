@@ -7,6 +7,17 @@
 #include <stdlib.h>
 #include <string.h>
 
+#define FILE_SIZE 0x00
+#define FILE_NAME 0x01
+#define MAX_FILENAME 256
+#define MAX_FILESIZE 65535
+
+#define START_PACKET 1
+#define END_PACKET 3
+#define FILE_SIZE_OCTETS 2
+#define CONTROL_OCTETS 7
+#define DATA_PACKET 2
+
 unsigned int getFileSize(char* filename) {
     struct stat st;
     stat(filename, &st);
@@ -25,6 +36,12 @@ void sendControlPacket(unsigned char control_number, char* filename) {
     unsigned int file_size = getFileSize(filename);
     packet[3] = file_size / 256;
     packet[4] = file_size % 256;
+
+    if (file_size > MAX_FILESIZE) {
+        printf("ERROR: File too large!\n");
+        llclose(FALSE);
+        exit(EXIT_FAILURE);
+    }
 
     packet[5] = FILE_NAME;
     packet[6] = strlen(filename);
@@ -68,14 +85,13 @@ void receivePackets(char* filename) {
     unsigned char packet[2000] = {0};
     int sequence_number = 0;
     int file_size = 0;
-    char* write_filename;
+    char write_filename[MAX_FILENAME + 1];
 
     out = fopen(filename, "w");
     int llbytes;
     while ((llbytes = llread(packet)) > 0) {
         if (packet[0] == 1) {
             int filename_length = packet[6];
-            write_filename = (char*)malloc((filename_length + 1) * sizeof(char));
             memcpy(write_filename, packet + 7, filename_length);
             write_filename[filename_length] = '\0';
             printf("------------------------------------\n");
@@ -125,9 +141,9 @@ void applicationLayer(const char *serialPort, const char *role, int baudRate,
     llopen(connectionParameters);
     switch (connectionParameters.role) {
         case LlTx:
-            sendControlPacket(1, filename);
+            sendControlPacket(START_PACKET, filename);
             sendDataPackets(filename);
-            sendControlPacket(3, filename);
+            sendControlPacket(END_PACKET, filename);
             break;
         case LlRx:
             receivePackets(filename);

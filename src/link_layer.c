@@ -296,6 +296,7 @@ int llwrite(const unsigned char *buf, int bufSize)
                         state = START;
                         alarm(0);
                         alarmEnabled = FALSE;
+                        alarmCount = 0;
                     } else {
                         state = START;
                     }

@@ -10,12 +10,12 @@
 #define FILE_SIZE 0x00
 #define FILE_NAME 0x01
 #define MAX_FILENAME 256
-#define MAX_FILESIZE 65535
+#define MAX_FILESIZE 16777215
 
 #define START_PACKET 1
 #define END_PACKET 3
-#define FILE_SIZE_OCTETS 2
-#define CONTROL_OCTETS 7
+#define FILE_SIZE_OCTETS 3
+#define CONTROL_OCTETS 8
 #define DATA_PACKET 2
 
 unsigned int getFileSize(char* filename) {
@@ -34,8 +34,11 @@ void sendControlPacket(unsigned char control_number, char* filename) {
     packet[2] = FILE_SIZE_OCTETS;
 
     unsigned int file_size = getFileSize(filename);
-    packet[3] = file_size / 256;
-    packet[4] = file_size % 256;
+    packet[5] = file_size % 256; 
+    file_size /= 256;
+    packet[4] = file_size % 256; 
+    file_size /= 256;
+    packet[3] = file_size % 256; 
 
     if (file_size > MAX_FILESIZE) {
         printf("ERROR: File too large!\n");
@@ -43,9 +46,9 @@ void sendControlPacket(unsigned char control_number, char* filename) {
         exit(EXIT_FAILURE);
     }
 
-    packet[5] = FILE_NAME;
-    packet[6] = strlen(filename);
-    strcpy(&packet[7], filename);
+    packet[6] = FILE_NAME;
+    packet[7] = strlen(filename);
+    strcpy(&packet[8], filename);
 
     llwrite(packet, packet_size);     
 }
@@ -91,12 +94,12 @@ void receivePackets(char* filename) {
     int llbytes;
     while ((llbytes = llread(packet)) > 0) {
         if (packet[0] == 1) {
-            int filename_length = packet[6];
-            memcpy(write_filename, packet + 7, filename_length);
+            int filename_length = packet[7];
+            memcpy(write_filename, packet + 8, filename_length);
             write_filename[filename_length] = '\0';
             printf("------------------------------------\n");
             printf("Received file: %s\n", write_filename);
-            file_size = packet[3] * 256 + packet[4];
+            file_size = packet[3] * (256 * 256) + packet[4] * 256 + packet[5];
             printf("Total file size: %d bytes\n", file_size);
         } else if (packet[0] == 2) {
             int bytes = fwrite(&packet[4], 1, llbytes - 4, out);
@@ -106,14 +109,14 @@ void receivePackets(char* filename) {
                 printf("ERROR: Out of order packet\n");
             }
         } else if (packet[0] == 3) {
-            int filename_length = packet[6];
+            int filename_length = packet[7];
             char filename[filename_length + 1];
-            memcpy(filename, packet + 7, filename_length);
+            memcpy(filename, packet + 8, filename_length);
             filename[filename_length] = '\0';
             if (strcmp(write_filename, filename) != 0) {
                 printf("ERROR: Wrong file name\n");
             }
-            if (file_size != packet[3] * 256 + packet[4]) {
+            if (file_size != packet[3] * (256 * 256) + packet[4] * 256 + packet[5]) {
                 printf("ERROR: Wrong file size\n");
             } else {
                 printf("CONTROL PACKET: CORRECT TRANSMISSION\n");

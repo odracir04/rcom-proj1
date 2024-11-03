@@ -364,7 +364,7 @@ int llread(unsigned char *packet)
                     if (rr[0] == (ADDRESS_TX ^ CONTROL_SET)) {
                         state = BCC_OK;
                     } else {
-                        state = START;
+                        state = ERROR;
                     }
                     break;
                 case C_RR:

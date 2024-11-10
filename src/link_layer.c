@@ -7,7 +7,7 @@
 #include <sys/stat.h>
 #include <termios.h>
 #include <unistd.h>
-#include <time.h>
+#include <sys/time.h>
 
 #include "../include/link_layer.h"
 #include "../include/serial_port.h"
@@ -21,7 +21,7 @@
 extern int alarmEnabled;
 extern int alarmCount;
 
-clock_t start_time = 0;
+struct timeval start, end;
 int current_frame = 0;
 LinkLayer connection;
 LinkLayerStats stats = {0};
@@ -41,7 +41,7 @@ int llopen(LinkLayer connectionParameters)
 
     connection = connectionParameters;
     FrameState state;
-    start_time = clock();
+    gettimeofday(&start, NULL);
     unsigned char buf[CTRL_FRAME_SIZE] = {0};
 
     (void)signal(SIGALRM, alarmHandler);
@@ -678,7 +678,8 @@ int llclose(int showStatistics)
             break;
     }
 
-    stats.elapsedTime = (double)(clock() - start_time) / CLOCKS_PER_SEC;
+    gettimeofday(&end, NULL);
+    stats.elapsedTime = (double) (end.tv_usec - start.tv_usec) / 1000000 + (double) (end.tv_sec - start.tv_sec);
 
     if (showStatistics) {
         printf("\nCommunication Summary:\n");
